@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>공부의 신 : 졸음에서 벗어나 공부하자 📚</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', -apple-system, sans-serif; }
+    body { background-color: #0f172a; color: #f8fafc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* 상단 HUD */
+    #header { background: #1e293b; border-bottom: 1px solid #334155; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+    .brand-title { font-size: 22px; font-weight: bold; color: #a78bfa; }
+    .user-hud { display: flex; align-items: center; gap: 15px; }
+    .badge-level { background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid #fbbf24; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 14px; }
+    .badge-points { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 14px; }
+
+    /* 메인 레이아웃 */
+    #app-container { flex: 1; display: flex; gap: 20px; padding: 20px; overflow: hidden; position: relative; }
+
+    /* 좌측 대시보드 */
+    #dashboard-panel { flex: 1.2; background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; }
+    .active-task-box { background: #0f172a; border-radius: 12px; padding: 18px; border: 1px solid #475569; }
+    
+    /* AI 공부 펫 인터랙션 */
+    .pet-container { display: flex; align-items: center; background: #0f172a; border-radius: 12px; padding: 15px; margin: 15px 0; border: 1px dashed #6366f1; gap: 15px; }
+    .pet-avatar { font-size: 48px; background: #1e293b; padding: 10px; border-radius: 50%; border: 2px solid #8b5cf6; text-align: center; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; }
+    .pet-dialogue { font-size: 15px; font-weight: bold; color: #cbd5e1; flex: 1; }
+
+    .timer-huge { font-size: 60px; font-weight: 800; color: #10b981; text-align: center; font-family: monospace; letter-spacing: 2px; }
+    
+    /* 제어 버튼 그룹 */
+    .timer-btn-group { display: flex; gap: 10px; margin: 10px 0; justify-content: center; }
+    .btn-timer-control { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
+    .btn-pause { background: #f59e0b; color: white; }
+    .btn-done { background: #3b82f6; color: white; }
+    .btn-timer-control:disabled { background: #475569; cursor: not-allowed; opacity: 0.5; }
+
+    .status-alert-box { background: #334155; border-radius: 12px; padding: 15px; text-align: center; font-size: 16px; font-weight: bold; color: #cbd5e1; transition: 0.3s; }
+    .status-alert-box.alert-active { background: #ef4444; color: white; animation: pulse 1s infinite; }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    /* 우측 플래너 */
+    #planner-panel { flex: 1; background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 25px; display: flex; flex-direction: column; overflow: hidden; }
+    .planner-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; }
+    .planner-input-group { display: flex; gap: 8px; margin-bottom: 15px; }
+    .planner-input-group input[type="text"] { flex: 2; background: #0f172a; border: 1px solid #475569; color: white; padding: 12px; border-radius: 8px; font-size: 14px; }
+    .planner-input-group input[type="number"] { width: 90px; background: #0f172a; border: 1px solid #475569; color: white; padding: 12px; border-radius: 8px; font-size: 14px; }
+    .btn-add { background: #6366f1; color: white; border: none; padding: 0 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+    .task-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; }
+    .task-card { background: #0f172a; padding: 14px 18px; border-radius: 10px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .task-card.active { border-color: #10b981; background: #064e3b; }
+    .task-tag { font-size: 12px; padding: 4px 10px; border-radius: 12px; font-weight: bold; }
+    .status-todo { background: #475569; color: white; }
+    .status-running { background: #10b981; color: white; }
+    .status-paused { background: #f59e0b; color: white; }
+    .status-done { background: #3b82f6; color: white; }
+
+    .bottom-controls { margin-top: 15px; padding-top: 15px; border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; }
+
+    /* 비디오 화면 */
+    #floating-cam-box {
+      position: fixed; bottom: 20px; right: 20px; width: 200px; height: 150px;
+      background: #000; border: 2px solid #8b5cf6; border-radius: 12px; overflow: hidden;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.7); z-index: 99; display: flex; justify-content: center; align-items: center;
+    }
+    #floating-cam-box video { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    .cam-badge { position: absolute; top: 6px; left: 6px; background: rgba(15, 23, 42, 0.85); color: #10b981; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 8px; z-index: 5; }
+
+    /* 모달 레이어 */
+    #login-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(8px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; }
+    .btn-google { background: #ffffff; color: #000; font-weight: bold; padding: 14px 28px; border-radius: 30px; border: none; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 16px; }
+
+    .modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); display: flex; justify-content: center; align-items: center; z-index: 150; }
+    .modal-card { background: #1e293b; padding: 30px; border-radius: 16px; text-align: center; width: 440px; border: 1px solid #6366f1; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+    .btn-action { background: #10b981; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 15px; }
+
+    /* 🧘 목 운동 루틴 모달 */
+    .stretch-progress-box { background: #0f172a; padding: 15px; border-radius: 12px; margin: 15px 0; border: 1px solid #334155; }
+    .stretch-step-title { font-size: 18px; font-weight: bold; color: #a78bfa; margin-bottom: 8px; }
+    .stretch-count-badge { font-size: 28px; font-weight: 800; color: #10b981; }
+  </style>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <!-- 로그인 화면 -->
+  <div id="login-overlay">
+    <h1 style="font-size: 38px; color: #a78bfa; margin-bottom: 10px;">🏫 공부의 신</h1>
+    <p style="color: #94a3b8; margin-bottom: 30px;">AI 자세 & 졸음 모니터링 기반 순공 타임 트래커</p>
+    <button class="btn-google" onclick="loginWithGoogle()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" alt="Google">
+      이화여고 계정으로 시작하기
+    </button>
+  </div>
+
+  <!-- 헤더 HUD -->
+  <div id="header">
+    <div class="brand-title">🏫 공부의 신</div>
+    <div class="user-hud">
+      <span id="user-name" style="font-weight: bold;">사용자</span>
+      <span id="user-title" class="badge-level">하수 🐣</span>
+      <span class="badge-points">포인트: <span id="user-points">0</span>P</span>
+    </div>
+  </div>
+
+  <!-- 메인 UI -->
+  <div id="app-container">
+    
+    <!-- 좌측 대시보드 -->
+    <div id="dashboard-panel">
+      <div>
+        <h2 style="font-size: 18px; color: #cbd5e1; margin-bottom: 10px;">⏱️ 현재 학습목표</h2>
+        <div class="active-task-box">
+          <div id="active-task-title" style="font-size: 20px; font-weight: bold; color: #a78bfa;">플래너에서 항목을 선택해주세요</div>
+          <div id="active-task-meta" style="color: #94a3b8; margin-top: 5px; font-size: 13px;">예상 소요 시간: -</div>
+        </div>
+      </div>
+
+      <!-- AI 펫 -->
+      <div class="pet-container">
+        <div class="pet-avatar" id="pet-avatar">🐣</div>
+        <div class="pet-dialogue" id="pet-dialogue">"오늘도 같이 열공해봐요! 준비되면 플래너를 클릭하세요."</div>
+      </div>
+
+      <div>
+        <div class="timer-huge" id="timer-display">00:00:00</div>
+        
+        <div class="timer-btn-group">
+          <button class="btn-timer-control btn-pause" id="btn-pause" onclick="pauseTask()" disabled>⏸️ 휴식 (일시정지)</button>
+          <button class="btn-timer-control btn-done" id="btn-done" onclick="completeTask()" disabled>✅ 공부 완료</button>
+        </div>
+      </div>
+
+      <div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; font-weight: bold; color: #94a3b8;">
+          <span>AI 모니터링 상태</span>
+          <span>경고 누적: <span id="stop-count" style="color:#ef4444; font-size: 16px; font-weight:800;">0</span>/3회</span>
+        </div>
+        <div class="status-alert-box" id="status-box">대기 중 (공부 시작 시 모니터링 활성화)</div>
+      </div>
+    </div>
+
+    <!-- 우측 플래너 -->
+    <div id="planner-panel">
+      <div class="planner-title">
+        <span>📝 오늘의 공부 플래너</span>
+      </div>
+
+      <div class="planner-input-group">
+        <input type="text" id="task-title" placeholder="할 일 입력 (예: 수학 20문제 풀기)">
+        <input type="number" id="task-time" placeholder="예상(분)">
+        <button class="btn-add" onclick="addTask()">추가</button>
+      </div>
+
+      <div class="task-list" id="task-list"></div>
+
+      <div class="bottom-controls">
+        <button onclick="calculateDailyReward()" style="background: #8b5cf6; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer;">🌙 하루 일과 마감 & 보너스 정산</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 비디오 -->
+  <div id="floating-cam-box">
+    <div class="cam-badge">AI Cam 🟢</div>
+    <video id="webcam" playsinline></video>
+  </div>
+
+  <!-- 캘리브레이션 모달 -->
+  <div class="modal" id="calib-modal" style="display: none;">
+    <div class="modal-card">
+      <h2>📐 AI 자세 캘리브레이션</h2>
+      <p style="color: #94a3b8; margin: 15px 0 20px;">공부할 때의 바른 정자세를 취하고 버튼을 눌러주세요.</p>
+      <button class="btn-action" onclick="startCalibrationStep()">기준 등록하기</button>
+    </div>
+  </div>
+
+  <!-- 🧘 목 운동 루틴 모달 -->
+  <div class="modal" id="stretch-modal" style="display: none;">
+    <div class="modal-card">
+      <h2 style="color: #ef4444;">🚨 뇌를 깨우는 목 운동 루틴!</h2>
+      <p style="color: #cbd5e1; margin-top: 8px; font-size: 14px;">집중력이 3회 이상 떨어졌습니다. 동작을 완수해야 공부가 재개됩니다!</p>
+      
+      <div class="stretch-progress-box">
+        <div class="stretch-step-title" id="stretch-step-title">1단계: 위쪽 보고 오기</div>
+        <div class="stretch-count-badge"><span id="stretch-current-count">0</span> / 3회</div>
+        <p id="stretch-guide-text" style="color: #94a3b8; font-size: 13px; margin-top: 8px;">카메라를 보며 고개를 위로 크게 올렸다가 정면으로 돌아오세요.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDY3pp5uK-JSapEMT0mWAYjHnzC0BqkPO4",
+      authDomain: "god-of-studying.firebaseapp.com",
+      projectId: "god-of-studying",
+      storageBucket: "god-of-studying.firebasestorage.app",
+      messagingSenderId: "878726692672",
+      appId: "1:878726692672:web:677710b171d61b9517c4a5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUser = null;
+    let tasks = [];
+    let currentTaskIdx = null;
+    let timerInterval = null;
+    
+    let stopCounter = 0; 
+    let isStudying = false; // 🔥 핵심 플래그: 수동 휴식/완료 시 false가 되어 타이머 자동 재개 차단
+    let lastWarningTime = 0; 
+
+    // 😴 눈 감음 둔감화 처리 변수
+    let closedEyeStartTime = 0;
+
+    // 🧘 목 운동 루틴 관련 변수
+    let isStretching = false;
+    let stretchStage = 0; 
+    let stretchCount = 0;
+    let stretchStateFlag = false; 
+    let lastActionTime = 0;
+
+    let calibEAR = 0.25; 
+    let calibNoseY = 0.5;
+    let isCalibrated = false;
+
+    const videoElement = document.getElementById('webcam');
+
+    const faceMesh = new FaceMesh({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
+    faceMesh.setOptions({ refineLandmarks: true, maxNumFaces: 1 });
+    faceMesh.onResults(onFaceResults);
+
+    const pose = new Pose({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
+    pose.setOptions({ modelComplexity: 1 });
+    pose.onResults(onPoseResults);
+
+    let latestFaceLm = null;
+    let latestPoseLm = null;
+
+    function onFaceResults(results) {
+      latestFaceLm = (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) ? results.multiFaceLandmarks[0] : null;
+      processDetection();
+    }
+
+    function onPoseResults(results) {
+      latestPoseLm = results.poseLandmarks ? results.poseLandmarks.landmark : null;
+      if (isStretching) {
+        handleStretchingRoutine();
+      }
+    }
+
+    function calculateEAR(landmarks) {
+      const v1 = Math.hypot(landmarks[385].x - landmarks[380].x, landmarks[385].y - landmarks[380].y);
+      const h1 = Math.hypot(landmarks[362].x - landmarks[263].x, landmarks[362].y - landmarks[263].y);
+      return v1 / (h1 || 1.0);
+    }
+
+    function processDetection() {
+      // 공부 모드가 아니거나 목 운동 중이면 감지 무시
+      if (!isStudying || isStretching) return;
+
+      const statusBox = document.getElementById('status-box');
+      const petAvatar = document.getElementById('pet-avatar');
+      const petDialogue = document.getElementById('pet-dialogue');
+      const now = Date.now();
+
+      let isEyeClosed = false;
+      let isPostureBad = false;
+
+      if (latestFaceLm) {
+        const currentEAR = calculateEAR(latestFaceLm);
+        
+        // 👁️ 눈 감음 판정 (1.2초 이상 유지 시만)
+        if (currentEAR < calibEAR * 0.45) {
+          if (closedEyeStartTime === 0) closedEyeStartTime = now;
+          if (now - closedEyeStartTime > 1200) {
+            isEyeClosed = true;
+          }
+        } else {
+          closedEyeStartTime = 0;
+        }
+
+        // 🙇‍♂️ 고개 숙임 판정
+        const noseY = latestFaceLm[1].y;
+        if (noseY > calibNoseY + 0.14) {
+          isPostureBad = true;
+        }
+      } else {
+        isPostureBad = true;
+      }
+
+      const isDistracted = isEyeClosed || isPostureBad;
+
+      if (isDistracted) {
+        pauseTimer();
+        statusBox.className = "status-alert-box alert-active";
+        statusBox.innerText = isEyeClosed ? "🚨 졸음 감지! (눈을 붙이고 계신가요?)" : "🚨 자세 불량 감지! (고개를 들어주세요)";
+        petAvatar.innerText = "😱";
+        petDialogue.innerText = "“주인님, 졸거나 자세가 흐트러진 것 같아요!”";
+
+        if (now - lastWarningTime > 2000) {
+          lastWarningTime = now;
+          stopCounter++;
+          document.getElementById('stop-count').innerText = stopCounter;
+
+          if (stopCounter >= 3) {
+            triggerStretchingModal();
+          }
+        }
+      } else {
+        statusBox.className = "status-alert-box";
+        statusBox.innerText = "🔥 완벽한 몰입 중! 순공 시간 측정 진행 중";
+        petAvatar.innerText = "✍️";
+        petDialogue.innerText = "“열공하는 모습 멋져요! 집중력이 최고예요!”";
+
+        // isStudying 상태일 때만 정자세 감지 시 타이머 자동 재개
+        resumeTimer();
+      }
+    }
+
+    // 🧘 목 운동 모달 실행
+    function triggerStretchingModal() {
+      isStretching = true;
+      pauseTimer();
+      
+      stretchStage = 0;
+      stretchCount = 0;
+      stretchStateFlag = false;
+
+      document.getElementById('stretch-modal').style.display = 'flex';
+      updateStretchUI();
+    }
+
+    function updateStretchUI() {
+      const titles = ["⬆️ 1단계: 위쪽 보고 오기", "⬇️ 2단계: 아래쪽 보고 오기", "🔄 3단계: 목 크게 돌리기"];
+      const guides = [
+        "카메라를 보며 고개를 위로 크게 올렸다가 정면으로 돌아오세요.",
+        "카메라를 보며 고개를 아래로 숙였다가 정면으로 돌아오세요.",
+        "고개를 좌우로 크게 기울이거나 천천히 한 바퀴 돌려주세요."
+      ];
+
+      document.getElementById('stretch-step-title').innerText = titles[stretchStage];
+      document.getElementById('stretch-current-count').innerText = stretchCount;
+      document.getElementById('stretch-guide-text').innerText = guides[stretchStage];
+    }
+
+    // 🧘 Pose 추적 알고리즘
+    function handleStretchingRoutine() {
+      if (!latestPoseLm) return;
+
+      const nose = latestPoseLm[0];
+      const leftEar = latestPoseLm[7];
+      const rightEar = latestPoseLm[8];
+      const earY = (leftEar.y + rightEar.y) / 2;
+      const now = Date.now();
+
+      if (now - lastActionTime < 800) return;
+
+      if (stretchStage === 0) {
+        if (nose.y < earY - 0.04) stretchStateFlag = true;
+        if (stretchStateFlag && Math.abs(nose.y - earY) < 0.02) {
+          stretchCount++;
+          stretchStateFlag = false;
+          lastActionTime = now;
+          if (stretchCount >= 3) { stretchStage = 1; stretchCount = 0; }
+          updateStretchUI();
+        }
+      } else if (stretchStage === 1) {
+        if (nose.y > earY + 0.04) stretchStateFlag = true;
+        if (stretchStateFlag && Math.abs(nose.y - earY) < 0.02) {
+          stretchCount++;
+          stretchStateFlag = false;
+          lastActionTime = now;
+          if (stretchCount >= 3) { stretchStage = 2; stretchCount = 0; }
+          updateStretchUI();
+        }
+      } else if (stretchStage === 2) {
+        const earDiff = Math.abs(leftEar.y - rightEar.y);
+        if (earDiff > 0.05) {
+          stretchCount++;
+          lastActionTime = now;
+          if (stretchCount >= 3) {
+            isStretching = false;
+            stopCounter = 0;
+            closedEyeStartTime = 0;
+            document.getElementById('stop-count').innerText = "0";
+            document.getElementById('stretch-modal').style.display = 'none';
+
+            alert("🎉 목 운동 완료! 정신이 맑아졌습니다. 다시 열공하세요!");
+            resumeTimer();
+          }
+          updateStretchUI();
+        }
+      }
+    }
+
+    function openCalibration() {
+      document.getElementById('calib-modal').style.display = 'flex';
+    }
+
+    function startCalibrationStep() {
+      if (latestFaceLm) {
+        calibEAR = calculateEAR(latestFaceLm);
+        calibNoseY = latestFaceLm[1].y;
+        isCalibrated = true;
+
+        document.getElementById('calib-modal').style.display = 'none';
+        alert("✅ 정자세 기준 등록 완료!");
+        if (currentTaskIdx !== null) startStudying();
+      } else {
+        alert("카메라 정면을 바라보아 주세요!");
+      }
+    }
+
+    function addTask() {
+      const title = document.getElementById('task-title').value.trim();
+      const timeEst = parseInt(document.getElementById('task-time').value);
+      if (!title || isNaN(timeEst)) return;
+
+      tasks.push({ id: Date.now(), title, timeEst, timeReal: 0, status: 'status-todo', statusText: '대기' });
+      renderTasks();
+      savePlannerToFirebase();
+      document.getElementById('task-title').value = '';
+      document.getElementById('task-time').value = '';
+    }
+
+    function selectTask(idx) {
+      if (tasks[idx].status === 'status-done') return;
+
+      if (!isCalibrated) {
+        currentTaskIdx = idx;
+        openCalibration();
+        return;
+      }
+      
+      currentTaskIdx = idx;
+      tasks[idx].status = 'status-running';
+      tasks[idx].statusText = '🔥 측정 중';
+
+      document.getElementById('active-task-title').innerText = tasks[idx].title;
+      document.getElementById('active-task-meta').innerText = `예상: ${tasks[idx].timeEst}분`;
+
+      document.getElementById('btn-pause').disabled = false;
+      document.getElementById('btn-done').disabled = false;
+
+      renderTasks();
+      startStudying();
+    }
+
+    // ⏸️ [일시정지 기능]
+    function pauseTask() {
+      if (currentTaskIdx === null) return;
+
+      isStudying = false; // 🔥 핵심: 모니터링 자동 측정 끔
+      pauseTimer();
+
+      tasks[currentTaskIdx].status = 'status-paused';
+      tasks[currentTaskIdx].statusText = '⏸️ 휴식 중';
+
+      document.getElementById('status-box').className = "status-alert-box";
+      document.getElementById('status-box').innerText = "⏸️ 휴식 중 (타이머 중지됨)";
+      document.getElementById('pet-avatar').innerText = "☕";
+      document.getElementById('pet-dialogue').innerText = "“휴식 후 플래너 항목을 다시 클릭해 재개하세요.”";
+
+      document.getElementById('btn-pause').disabled = true;
+
+      renderTasks();
+      savePlannerToFirebase();
+    }
+
+    // ✅ [공부 완료 기능]
+    function completeTask() {
+      if (currentTaskIdx === null) return;
+
+      isStudying = false; // 🔥 핵심: 측정 종료
+      pauseTimer();
+
+      tasks[currentTaskIdx].status = 'status-done';
+      tasks[currentTaskIdx].statusText = '✅ 완료';
+
+      document.getElementById('status-box').className = "status-alert-box";
+      document.getElementById('status-box').innerText = "🎉 할 일 완료! 수고하셨습니다.";
+      document.getElementById('pet-avatar').innerText = "👏";
+      document.getElementById('pet-dialogue').innerText = "“목표 달성! 대단해요!”";
+
+      document.getElementById('btn-pause').disabled = true;
+      document.getElementById('btn-done').disabled = true;
+      document.getElementById('active-task-title').innerText = "플래너에서 다음 항목을 선택해주세요";
+      document.getElementById('active-task-meta').innerText = "예상 소요 시간: -";
+
+      renderTasks();
+      savePlannerToFirebase();
+      currentTaskIdx = null;
+    }
+
+    function renderTasks() {
+      const listEl = document.getElementById('task-list');
+      listEl.innerHTML = '';
+      tasks.forEach((t, idx) => {
+        const item = document.createElement('div');
+        item.className = `task-card ${currentTaskIdx === idx ? 'active' : ''}`;
+        item.onclick = () => selectTask(idx);
+        item.innerHTML = `
+          <div style="flex:1;">
+            <div style="font-weight:bold; font-size:15px; color:#f8fafc;">${t.title}</div>
+            <div style="font-size:12px; color:#94a3b8; margin-top:3px;">예상: ${t.timeEst}분 | 실측: ${Math.floor(t.timeReal/60)}분 ${t.timeReal%60}초</div>
+          </div>
+          <span class="task-tag ${t.status}">${t.statusText}</span>
+        `;
+        listEl.appendChild(item);
+      });
+    }
+
+    function startStudying() { isStudying = true; resumeTimer(); }
+    function resumeTimer() {
+      if (timerInterval) return;
+      timerInterval = setInterval(() => {
+        if (currentTaskIdx !== null && isStudying && !isStretching) {
+          tasks[currentTaskIdx].timeReal++;
+          updateTimerDisplay(tasks[currentTaskIdx].timeReal);
+        }
+      }, 1000);
+    }
+    function pauseTimer() { clearInterval(timerInterval); timerInterval = null; }
+    
+    function updateTimerDisplay(totalSeconds) {
+      const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+      const secs = String(totalSeconds % 60).padStart(2, '0');
+      document.getElementById('timer-display').innerText = `${hrs}:${mins}:${secs}`;
+    }
+
+    function loginWithGoogle() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider).then(res => {
+        currentUser = res.user;
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('user-name').innerText = currentUser.displayName;
+      }).catch(err => alert("로그인 실패: " + err.message));
+    }
+
+    function savePlannerToFirebase() {
+      if (!currentUser) return;
+      const today = new Date().toISOString().split('T')[0];
+      db.collection('users').doc(currentUser.uid).collection('planners').doc(today).set({ tasks });
+    }
+
+    const camera = new Camera(videoElement, {
+      onFrame: async () => { 
+        await faceMesh.send({ image: videoElement });
+        await pose.send({ image: videoElement });
+      },
+      width: 640, height: 480
+    });
+    camera.start();
+  </script>
+</body>
+</html>
