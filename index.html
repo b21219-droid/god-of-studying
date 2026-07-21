@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>공부의 신 : 졸음에서 벗어나 공부하자 📚</title>
+  
+  <style>
+    * { box-sizing: border-box; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; margin: 0; padding: 0; }
+    body { background-color: #f4f5f9; color: #333; padding: 20px; }
+
+    /* --- [1] Firebase 구글 로그인 화면 --- */
+    .login-wrapper {
+      display: flex; justify-content: center; align-items: center; min-height: 85vh;
+    }
+    .login-card {
+      background: white; padding: 40px 30px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      text-align: center; max-width: 400px; width: 100%;
+    }
+    .login-card h2 { color: #6c4ab6; margin-bottom: 10px; font-size: 24px; }
+    .login-card p { color: #666; font-size: 14px; margin-bottom: 25px; line-height: 1.4; }
+    
+    .btn-google {
+      width: 100%; background: white; border: 1px solid #ddd; padding: 14px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: bold; cursor: pointer; color: #444; font-size: 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: all 0.2s;
+    }
+    .btn-google:hover { background: #f8f9fa; border-color: #bbb; }
+
+    /* --- [2] 로그인 후 메인 화면 --- */
+    #app-container { display: none; }
+    
+    .header { text-align: center; margin-bottom: 20px; position: relative; }
+    .header h1 { color: #6c4ab6; font-size: 26px; }
+    .header p { color: #666; font-size: 14px; margin-top: 5px; }
+    
+    .user-profile-badge {
+      position: absolute; right: 10px; top: 0; font-size: 12px; background: #e2d6ff; color: #55349e; padding: 6px 12px; border-radius: 20px; font-weight: bold; display: flex; align-items: center; gap: 8px;
+    }
+    .btn-logout { background: none; border: none; color: #888; text-decoration: underline; cursor: pointer; font-size: 11px; }
+
+    .main-container { display: flex; gap: 20px; max-width: 1280px; margin: 0 auto; flex-wrap: wrap; }
+    
+    .left-panel { flex: 3.5; min-width: 340px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    .right-panel { flex: 6.5; min-width: 450px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; align-items: center; }
+
+    .input-group { display: flex; gap: 6px; margin-bottom: 15px; width: 100%; }
+    input[type="text"], input[type="number"], input[type="date"] { padding: 10px 8px; border: 1px solid #ddd; border-radius: 6px; outline: none; font-size: 13px; }
+    
+    .btn { background: #6c4ab6; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; whitespace: nowrap; }
+    .btn:hover { background: #55349e; }
+    .btn-warning { background: #ffd166; color: #333; }
+    .btn-success { background: #51cf66; color: white; }
+
+    .todo-list { list-style: none; max-height: 280px; overflow-y: auto; margin-top: 10px; }
+    .todo-item { padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-radius: 6px; margin-bottom: 4px; }
+    .todo-item:hover { background-color: #f5f0ff; }
+    .todo-item.active { background-color: #f0e6ff; border-left: 4px solid #6c4ab6; }
+    .todo-info { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    
+    .time-badge { font-size: 11px; background-color: #e2d6ff; color: #55349e; padding: 3px 7px; border-radius: 10px; font-weight: bold; }
+    .time-badge.done { background-color: #d3f9d8; color: #2b8a3e; }
+
+    .search-box { margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
+    .timer-display { font-size: 48px; font-weight: bold; color: #6c4ab6; margin: 10px 0; }
+    .status-badge { padding: 8px 16px; border-radius: 20px; background: #51cf66; color: white; font-weight: bold; font-size: 14px; margin-bottom: 15px; }
+
+    .cam-wrapper { position: relative; width: 640px; height: 480px; background: #000; border-radius: 12px; overflow: hidden; }
+    video, canvas { position: absolute; top: 0; left: 0; width: 640px; height: 480px; transform: scaleX(-1); }
+
+    .controls { display: flex; gap: 10px; margin-top: 15px; width: 100%; justify-content: center; }
+  </style>
+
+  <!-- MediaPipe CDN[cite: 3, 5, 8] -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <!-- [1] 시작 화면: Firebase 구글 로그인[cite: 1] -->
+  <div class="login-wrapper" id="login-container">
+    <div class="login-card">
+      <h2>공부의 신 📚</h2>
+      <p>이화여고 구글 계정으로 로그인 후<br>오늘의 순공 시간을 측정해보세요!</p>
+      
+      <button class="btn-google" id="btn-firebase-login">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.13C3.26 21.3 7.31 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.63H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.37l3.99-3.13z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.63l3.99 3.13c.95-2.85 3.6-4.96 6.72-4.96z"/></svg>
+        Google 계정으로 로그인
+      </button>
+    </div>
+  </div>
+
+  <!-- [2] 메인 서비스 화면[cite: 1] -->
+  <div id="app-container">
+    <div class="header">
+      <h1>공부의 신 : 졸음에서 벗어나 공부하자 📚</h1>
+      <p>레벨: <span id="user-level" style="font-weight:bold; color:#6c4ab6;">하수</span> | 포인트: <span id="user-points">0</span> pt</p>
+      <div class="user-profile-badge">
+        <span id="user-display-email">학생 정보</span>
+        <button class="btn-logout" id="btn-logout">로그아웃</button>
+      </div>
+    </div>
+
+    <div class="main-container">
+      <!-- 플래너 영역[cite: 1] -->
+      <div class="left-panel">
+        <h3>📋 오늘의 플래너</h3>
+        <div class="input-group" style="margin-top: 12px;">
+          <input type="text" id="todo-text" placeholder="할 일 입력" style="flex: 2.2; min-width: 0;">
+          <input type="number" id="todo-time" placeholder="예상 분" style="flex: 1.1; min-width: 0;">
+          <button class="btn" onclick="addTodo()">추가</button>
+        </div>
+
+        <ul class="todo-list" id="todo-list"></ul>
+
+        <div class="search-box">
+          <p style="font-size:12px; color:#888; margin-bottom:6px;">📅 과거 플래너 조회</p>
+          <div class="input-group">
+            <input type="date" id="search-date" style="flex: 1; min-width: 0;">
+            <button class="btn" style="background:#888;" onclick="searchPlanner()">검색</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 카메라 & 스탑워치 영역[cite: 1] -->
+      <div class="right-panel">
+        <h3 id="current-task">플래너에서 할 일을 클릭 후 시작하세요</h3>
+        <div class="timer-display" id="timer">00:00:00</div>
+        <div class="status-badge" id="status-badge">대기 중</div>
+
+        <div class="cam-wrapper">
+          <video id="webcam" autoplay playsinline></video>
+          <canvas id="canvas-out" width="640" height="480"></canvas>
+        </div>
+
+        <div class="controls">
+          <button class="btn" onclick="startCalibration()">공부 시작 (측정)</button>
+          <button class="btn btn-warning" onclick="pauseTimer()">일시 정지 (🔺)</button>
+          <button class="btn btn-success" onclick="finishTask()">완료 (종료)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase v10 SDK & Firestore DB 연결[cite: 1] -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDY3pp5uK-JSapEMT0mWAYjHnzC0BqkPO4",
+      authDomain: "god-of-studying.firebaseapp.com",
+      projectId: "god-of-studying",
+      storageBucket: "god-of-studying.firebasestorage.app",
+      messagingSenderId: "878726692672",
+      appId: "1:878726692672:web:677710b171d61b9517c4a5",
+      measurementId: "G-NHXWD0B3VR"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    window.currentUserUid = "";
+
+    // 🔥 DB 저장 함수 (구글 로그인 계정별 Firestore 저장)[cite: 1]
+    window.savePlannerToFirebase = async function() {
+      if (!window.currentUserUid) return;
+      const today = new Date().toISOString().split('T')[0];
+      const docRef = doc(db, "users", window.currentUserUid, "planners", today);
+
+      try {
+        await setDoc(docRef, {
+          todos: window.todos,
+          points: window.points,
+          updatedAt: new Date()
+        }, { merge: true });
+        console.log("Firestore 저장 완료!");
+      } catch (e) {
+        console.error("Firestore 저장 실패:", e);
+      }
+    };
+
+    // 📥 오늘 플래너 데이터 불러오기[cite: 1]
+    window.loadTodayPlannerFromFirebase = async function() {
+      if (!window.currentUserUid) return;
+      const today = new Date().toISOString().split('T')[0];
+      const docRef = doc(db, "users", window.currentUserUid, "planners", today);
+
+      try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          window.todos = data.todos || [];
+          window.points = data.points || 0;
+          window.renderTodos();
+          window.updateLevel();
+        } else {
+          window.todos = [];
+          window.renderTodos();
+        }
+      } catch (e) {
+        console.error("데이터 읽기 실패:", e);
+      }
+    };
+
+    // 🔍 과거 날짜 데이터 검색[cite: 1]
+    window.searchPlannerFromFirebase = async function(dateStr) {
+      if (!window.currentUserUid || !dateStr) return;
+      const docRef = doc(db, "users", window.currentUserUid, "planners", dateStr);
+
+      try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const list = data.todos || [];
+          if (list.length > 0) {
+            alert(`📅 ${dateStr}의 기록:\n` + list.map(t => `- ${t.text} (${t.actualSeconds ? window.formatTime(t.actualSeconds) : '미측정'})`).join('\n'));
+          } else {
+            alert("해당 날짜에 작성된 할 일이 없습니다.");
+          }
+        } else {
+          alert("해당 날짜의 저장 기록이 없습니다.");
+        }
+      } catch (e) {
+        console.error("검색 실패:", e);
+        alert("기록을 불러오는 중 오류가 발생했습니다.");
+      }
+    };
+
+    // 로그인[cite: 1]
+    document.getElementById('btn-firebase-login').addEventListener('click', () => {
+      signInWithPopup(auth, provider).catch(error => alert("로그인 오류: " + error.message));
+    });
+
+    // 로그아웃[cite: 1]
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      signOut(auth).then(() => location.reload());
+    });
+
+    // 로그인 상태에 따른 자동 복원[cite: 1]
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        window.currentUserUid = user.uid;
+        document.getElementById('user-display-email').innerText = user.displayName || user.email;
+        document.getElementById('login-container').style.display = 'none';
+        document.getElementById('app-container').style.display = 'block';
+
+        // 이전 플래너 데이터 불러오기[cite: 1]
+        await window.loadTodayPlannerFromFirebase();
+        
+        initCamera();
+      } else {
+        document.getElementById('login-container').style.display = 'flex';
+        document.getElementById('app-container').style.display = 'none';
+      }
+    });
+  </script>
+
+  <!-- 웹 로직 처리[cite: 1] -->
+  <script>
+    window.todos = [];
+    window.points = 0;
+    
+    let selectedTodoIndex = -1;
+    let timerInterval = null;
+    let secondsElapsed = 0;
+    let warningCount = 0;
+    
+    let isCalibrating = false;
+    let isStudying = false;
+    let inExerciseMode = false;
+    let calibSamples = [];
+    let calibStartTime = 0;
+    let baseEyeDist = 0.001;
+    let baseNoseY = 0.5;
+    let closedEyeFrames = 0;
+
+    let exStage = 0;
+    let exCount = 0;
+    let exCooldown = false;
+
+    const timerElem = document.getElementById('timer');
+    const statusBadge = document.getElementById('status-badge');
+    const videoElement = document.getElementById('webcam');
+    const canvasElement = document.getElementById('canvas-out');
+    const canvasCtx = canvasElement.getContext('2d');
+
+    function addTodo() {
+      const text = document.getElementById('todo-text').value.trim();
+      const time = document.getElementById('todo-time').value.trim();
+      if (!text || !time) return;
+
+      window.todos.push({ text, expectedTime: parseInt(time), done: false, actualSeconds: 0 });
+      document.getElementById('todo-text').value = '';
+      document.getElementById('todo-time').value = '';
+      renderTodos();
+      if (window.savePlannerToFirebase) window.savePlannerToFirebase();
+    }
+
+    window.formatTime = function(secs) {
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      return m > 0 ? `${m}분 ${s}초` : `${s}초`;
+    };
+
+    window.renderTodos = function() {
+      const list = document.getElementById('todo-list');
+      list.innerHTML = '';
+      window.todos.forEach((todo, idx) => {
+        const li = document.createElement('li');
+        li.className = `todo-item ${selectedTodoIndex === idx ? 'active' : ''}`;
+        
+        let timeTag = '';
+        if (todo.actualSeconds > 0) {
+          timeTag = `<span class="time-badge ${todo.done ? 'done' : ''}">⏱️ ${window.formatTime(todo.actualSeconds)}</span>`;
+        }
+
+        li.innerHTML = `
+          <div class="todo-info">
+            <span>${todo.done ? '✅ ' : ''}<strong>${todo.text}</strong></span>
+            ${timeTag}
+          </div>
+          <span style="font-size:12px; color:#888;">(예상: ${todo.expectedTime}분)</span>
+        `;
+        
+        li.onclick = () => {
+          selectedTodoIndex = idx;
+          document.getElementById('current-task').innerText = `선택된 할 일: ${todo.text}`;
+          renderTodos();
+        };
+        list.appendChild(li);
+      });
+    };
+
+    function updateTimerDisplay() {
+      const hrs = String(Math.floor(secondsElapsed / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((secondsElapsed % 3600) / 60)).padStart(2, '0');
+      const secs = String(secondsElapsed % 60).padStart(2, '0');
+      timerElem.innerText = `${hrs}:${mins}:${secs}`;
+    }
+
+    function startTimer() {
+      if (!timerInterval) {
+        timerInterval = setInterval(() => {
+          secondsElapsed++;
+          updateTimerDisplay();
+        }, 1000);
+      }
+      isStudying = true;
+      statusBadge.innerText = "🟢 열공 중!";
+      statusBadge.style.background = "#51cf66";
+    }
+
+    function pauseTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      isStudying = false;
+      statusBadge.innerText = "⏸️ 일시 정지 (🔺)";
+      statusBadge.style.background = "#ffd166";
+    }
+
+    function startCalibration() {
+      if (selectedTodoIndex === -1) {
+        alert("플래너에서 공부할 항목을 먼저 선택해 주세요!");
+        return;
+      }
+      isCalibrating = true;
+      calibSamples = [];
+      calibStartTime = Date.now();
+      statusBadge.innerText = "🟡 정자세 캘리브레이션 중 (3초간 정면을 보세요)";
+      statusBadge.style.background = "#ffd166";
+    }
+
+    function finishTask() {
+      if (selectedTodoIndex === -1) return;
+      pauseTimer();
+      
+      const todo = window.todos[selectedTodoIndex];
+      todo.done = true;
+      todo.actualSeconds = secondsElapsed;
+
+      const actualMins = Math.round(secondsElapsed / 60);
+      const diff = Math.abs(todo.expectedTime - actualMins);
+      const earned = Math.max(10, 100 - diff * 10);
+      window.points += earned;
+      updateLevel();
+
+      alert(`수고하셨습니다!\n총 걸린 시간: ${window.formatTime(secondsElapsed)}\n획득 포인트: ${earned}pt`);
+      
+      secondsElapsed = 0;
+      updateTimerDisplay();
+      renderTodos();
+      if (window.savePlannerToFirebase) window.savePlannerToFirebase();
+    }
+
+    window.updateLevel = function() {
+      document.getElementById('user-points').innerText = window.points;
+      let level = "하수";
+      if (window.points >= 500) level = "공부의 신 👑";
+      else if (window.points >= 300) level = "고수 🎓";
+      else if (window.points >= 100) level = "중수 📘";
+      document.getElementById('user-level').innerText = level;
+    };
+
+    function searchPlanner() {
+      const date = document.getElementById('search-date').value;
+      if (!date) {
+        alert("조회할 날짜를 선택해주세요.");
+        return;
+      }
+      if (window.searchPlannerFromFirebase) {
+        window.searchPlannerFromFirebase(date);
+      }
+    }
+
+    // MediaPipe 감지[cite: 3, 5, 8]
+    const faceMesh = new FaceMesh({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
+    faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true });
+
+    const pose = new Pose({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
+    pose.setOptions({ modelComplexity: 1 });
+
+    let currentPoseLandmarks = null;
+    pose.onResults((results) => { currentPoseLandmarks = results.poseLandmarks; });
+
+    faceMesh.onResults((results) => {
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+      if (isCalibrating) {
+        const elapsed = (Date.now() - calibStartTime) / 1000;
+        canvasCtx.fillStyle = "yellow";
+        canvasCtx.font = "24px Arial";
+        canvasCtx.fillText(`캘리브레이션... ${Math.ceil(3.5 - elapsed)}초`, 30, 40);
+
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks[0]) {
+          const lm = results.multiFaceLandmarks[0];
+          const dist = Math.pow(lm[158].x - lm[153].x, 2) + Math.pow(lm[158].y - lm[153].y, 2);
+          calibSamples.push(dist);
+        }
+        if (currentPoseLandmarks) baseNoseY = currentPoseLandmarks[0].y;
+
+        if (elapsed >= 3.0) {
+          isCalibrating = false;
+          if (calibSamples.length > 0) {
+            baseEyeDist = calibSamples.reduce((a, b) => a + b, 0) / calibSamples.length;
+          }
+          startTimer();
+        }
+      }
+      else if (inExerciseMode) {
+        if (currentPoseLandmarks) {
+          const noseY = currentPoseLandmarks[0].y;
+          canvasCtx.fillStyle = "#00ffff";
+          canvasCtx.font = "28px Arial";
+
+          if (exStage === 0) {
+            canvasCtx.fillText(`위쪽 보기! (${exCount}/3)`, 40, 60);
+            if (noseY < baseNoseY - 0.06 && !exCooldown) {
+              exCount++;
+              exCooldown = true;
+              setTimeout(() => exCooldown = false, 1000);
+              if (exCount >= 3) { exStage = 1; exCount = 0; }
+            }
+          } else if (exStage === 1) {
+            canvasCtx.fillText(`아래쪽 보기! (${exCount}/3)`, 40, 60);
+            if (noseY > baseNoseY + 0.06 && !exCooldown) {
+              exCount++;
+              exCooldown = true;
+              setTimeout(() => exCooldown = false, 1000);
+              if (exCount >= 3) {
+                inExerciseMode = false;
+                warningCount = 0;
+                startTimer();
+              }
+            }
+          }
+        }
+      }
+      else if (isStudying) {
+        let isEyeClosed = false;
+        let isPostureBad = false;
+
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks[0]) {
+          const lm = results.multiFaceLandmarks[0];
+          const dist = Math.pow(lm[158].x - lm[153].x, 2) + Math.pow(lm[158].y - lm[153].y, 2);
+          if (dist < baseEyeDist * 0.25) isEyeClosed = true;
+        }
+
+        if (currentPoseLandmarks && currentPoseLandmarks[0].y > baseNoseY + 0.12) {
+          isPostureBad = true;
+        }
+
+        if (isEyeClosed || isPostureBad) closedEyeFrames++;
+        else closedEyeFrames = 0;
+
+        if (closedEyeFrames > 25) {
+          pauseTimer();
+          warningCount++;
+          closedEyeFrames = 0;
+
+          if (warningCount >= 3) {
+            inExerciseMode = true;
+            exStage = 0;
+            exCount = 0;
+            statusBadge.innerText = "⚠️ 경고 3회! 목 운동을 완료하세요";
+            statusBadge.style.background = "#ff6b6b";
+          } else {
+            statusBadge.innerText = `⚠️ 졸음/자세불량! (경고 ${warningCount}/3)`;
+            statusBadge.style.background = "#ff6b6b";
+          }
+        }
+      }
+    });
+
+    function initCamera() {
+      const camera = new Camera(videoElement, {
+        onFrame: async () => {
+          await faceMesh.send({ image: videoElement });
+          await pose.send({ image: videoElement });
+        },
+        width: 640,
+        height: 480
+      });
+      camera.start();
+    }
+  </script>
+</body>
+</html>
